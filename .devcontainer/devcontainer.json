@@ -1,0 +1,41 @@
+{
+	"name": "ID311",
+	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+	"image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+	"features": {
+		"ghcr.io/devcontainers/features/node:1": {}
+	},
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"workbench.colorTheme": "Visual Studio Light",
+				"workbench.iconTheme": "material-icon-theme",
+				"editor.defaultFormatter": "esbenp.prettier-vscode",
+				"editor.snippetSuggestions": "top",
+				"editor.suggestSelection": "first",
+				"editor.formatOnSave": true,
+				"prettier.singleQuote": true,
+			},
+			"extensions": [
+				"esbenp.prettier-vscode",
+				"PKief.material-icon-theme",
+				"yzhang.markdown-all-in-one",
+				"ritwickdey.LiveServer",
+				"mhutchie.git-graph",
+				"pranaygp.vscode-css-peek",
+				"naumovs.color-highlight",
+				"mechatroner.rainbow-csv",
+				"svelte.svelte-vscode"
+			]
+		},
+	},
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	// "features": {},
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+	// Use 'postCreateCommand' to run commands after the container is created.
+	// "postCreateCommand": "sudo apt update",
+	// Configure tool-specific properties.
+	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+	"remoteUser": "vscode"
+}
