@@ -1,7 +1,10 @@
 let player;
 let gravity = 0.8;
+
 let projectiles = [];
+let specialProjectiles = [];
 let bombs = [];
+
 let groundY = 500;
 let keys = {};
 let powerUps = [];
@@ -55,33 +58,32 @@ class Background {
 }
 
 class Player {
-  constructor(x,y, imgSet, controls, spawnX){
+  constructor(x,y, imgSet, controls){
     this.x = x;
     this.y = y;
     this.vx = 0;
     this.vy = 0;
+    this.width = 32;
+    this.height = 32;
+
     this.onGround = false;
     this.jumpCount = 0;
     this.deathCount = 10;
     this.imgSet = imgSet;
-
-
-    //animation
-    this.frame = 0;
-    this.animationCnt = 0;
-    this.facing = "right";
-    this.state = "idle"; // idle, walk, jump, shoot, dead
     
     this.controls = controls;//custom keyset
     this.keys = {};// key pressed 상태 추적적
 
+    this.bombHoldStartTime = null;
     this.skill = {
       resist: false,
       fastFire: false,
-      bigMode: false,
+      isGiant: false,
       itemCount: 0
     }
-    this.bombHoldStartTime = null;
+    this.facing = "right";
+    this.state = "idle";
+    this.frame = 0;
   }
 
   update() {
@@ -89,22 +91,13 @@ class Player {
     if (this.keys[this.controls.left]) {
       this.vx = -5;
       this.facing = "left";
-      this.state = "walk";
     }
     else if (this.keys[this.controls.right]) {
       this.vx = 5;
       this.facing = "right";
-      this.state = "walk";
     }
     else {
       this.vx = 0;
-      this.state = "idle";
-    }
-
-    //shoot anim
-    if (this.state === 'shoot' && millis() - this.lastFrameChange > this.attackFrameDuration) {
-      this.state = this.onGround ? 'idle' : 'jump'; // 공격 끝나면 원래 상태로
-      this.frame = 0;
     }
     
     //ground judge
@@ -112,8 +105,8 @@ class Player {
     this.x += this.vx;
     this.y += this.vy;
 
-    if (this.y + 50 >= groundY) {
-      this.y = groundY - 50;
+    if (this.y + this.height >= groundY) {
+      this.y = groundY - this.height;
       this.vy = 0;
       this.onGround = true;
       this.jumpCount = 0;
@@ -143,29 +136,31 @@ class Player {
   jump() {
     if(this.jumpCount < 2) {
       this.vy = -15;
-      this.jumpCount;
+      this.jumpCount++;
     }
   }
 
+  //3 attack logic
   shoot() {
-    if (this.power.fastFire || frameCount % 20 === 0) {
-      const direction = this.facing === "right" ? 10 : -10;
+    if (this.skill.fastFire || frameCount % 20 === 0) {
+      const direction = this.facing === "right" ? 20 : -20;
       projectiles.push(new Projectile(this.x, this.y, direction));
-
-      this.lastFrameChange = millis();
-    }
-    
+    }  
   }
 
   dropBomb() {
-    bombs.push(new Bomb(this.x, this.y));
+    const bombX = this.x + this.width / 2;
+    const bombY = this.y;
+    bombs.push(new Bomb(bombX, bombY));
   }
 
   fireBigMissile() {
     console.log("받아라 비장의무기~~");
-    const dir = this.facing === "right" ? 20 : -20;
+    const dir = this.facing === "right" ? 5 : -5;
     specialProjectiles.push(new BigMissile(this.x, this.y, dir));
+    this.skill.itemCount = this.skill.itemCount - 3;
   }
+  //end..
 
   handleKeyPressed(k) {
     this.keys[k] = true;
@@ -189,7 +184,7 @@ class Player {
   
       if (heldDuration >= 2000 && this.skill.itemCount >= 3) {
         this.fireBigMissile();       // 대형 미사일 발사
-        this.skill.itemCount = 0;    // 카운트 초기화
+        this.skill.itemCount  = this.skill.itemCount - 3;    // 카운트 초기화
       }
   
       // 초기화 (2초 미만이어도 시간 초기화)
@@ -198,24 +193,163 @@ class Player {
   }
 
   draw() {
-    //그리기기
     const img = this.imgSet[this.state][this.frame];
-
-    push();
-    if(this.facing === "left"){
-      scale(-1, 1);
-      image(img, -this.x - 30, this.y, 30, 50);
+    push();                      // 1) 상태 저장
+    if (this.facing === 'left') {
+      // (선택) 기준점을 옮긴 뒤 뒤집으면 좀 더 직관적입니다.
+      translate(this.x + this.width, this.y);
+      scale(-1,1);
+      image(img, 0, 0, this.width, this.height);
+    } else {
+      image(img, this.x, this.y, this.width, this.height);
     }
-    else{
-      image(img, this.x, this.y)
-    }
+    pop();                       // 2) 좌표계 원상복구
+  }
+  
+}
 
-    //목숨표시시
-    fill(0);
+class Projectile {
+  constructor(x, y, vx, width, height) {
+    this.x = x;
+    this.y = y;
+    this.vx = vx;
+    this.width = width;
+    this.height = height;
+    this.spawnTime = millis();
+    this.lifetime = 10000;
+    this.shouldDestroy = false;
+  }
+
+  update(targets) {
+    this.x += this.vx;
+
+    for (const t of targets) {
+      if(this.hits(t)) {
+        const knockback = this.vx;
+        t.vx += knockback;
+        this.shouldDestroy = true;
+      }
+    }
+    if (millis() - this.spawnTime > this.lifetime) {
+      this.shouldDestroy = true;
+    }
+  }
+
+  draw() {
+    fill(255, 100, 0);
+    ellipse(this.x, this.y, this.width, this.height);
+  }
+
+  destroy() {
+    return this.shouldDestroy;
+  }
+
+  // 충돌 체크 메서드
+  hits(target) {
+    return (
+      this.x < target.x + target.width &&
+      this.x + this.width > target.x &&
+      this.y < target.y + target.height &&
+      this.y + this.height > target.y
+    );
   }
 }
 
 
+class Bomb {
+  constructor(x,y) {
+    this.x = x;
+    this.y = y;
+    this.width = 16;
+    this.height = 16;
+    this.timer = 120;
+  }
+
+  update() {
+    this.timer --;
+    if(this.timer <=0){
+      this.explode();
+    }
+  }
+
+  explode() {
+    console.log("exploded");
+  }
+
+  draw() {
+    fill(255,0,0);
+    rect(this.x, this.y, this.width, this.height);
+  }
+}
+
+class BigMissile {
+  constructor(x,y,vx) {
+    this.x = x;
+    this.y = y;
+    this.vx = vx;
+    this.width = 64;
+    this.height = 64
+
+    this.spawnTime = millis();
+    this.lifetime = 20000;
+    this.shouldDestroy = false;
+  }
+  update(targets) {
+    this.x += this.vx;
+    for (const t of targets) {
+      if (this.hits(t)) {
+        const knockback = this.vx * 0.1;
+        t.vx += knockback;
+      }
+    }
+    if (millis() - this.spawnTime > this.lifetime) {
+      this.shouldDestroy = true;
+    }
+  }
+  draw() {
+    fill(255, 0, 255);
+    rect(this.x, this.y, this.width, this.height);
+  }
+  destroy() {
+    return this.shouldDestroy;
+  }
+}
+
+class Item {
+
+}
+
+
+
+function handleProjectiles() {
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    projectiles[i].update([player1, player2]);
+    projectiles[i].draw();
+    if (projectiles[i].destroy()) {
+      projectiles.splice(i, 1);
+    }
+  }
+}
+
+function handleBombs() {
+  for (let i = bombs.length - 1; i >= 0; i--) {
+    const b = bombs[i];
+    b.update();
+    b.draw();
+    if (b.exploded) {
+      bombs.splice(i, 1); // 제거
+    }
+  }
+}
+function handleSpecialProjectiles() {
+  for (let i = specialProjectiles.length - 1; i >= 0; i--) {
+    specialProjectiles[i].update([player1, player2]);
+    specialProjectiles[i].draw();
+    if (specialProjectiles[i].destroy()) {
+      specialProjectiles.splice(i, 1);
+    }
+  }
+}
 
 let backgroundManager; 
 let P1imgs = [];
@@ -330,83 +464,27 @@ function setup() {
   console.log("obj img loading done...");
   //object img loading done...
 
-
+  player1 = new Player(0, 0, P1imgs, controlsP1);
+  player2 = new Player(0, 0, P2imgs, controlsP2);
 
 }
 
+
 function draw() {
-  // 🔲 배경 및 바닥
+
   backgroundManager.draw();
-  fill(100);
   rect(0, groundY, width, 100);
 
-  // 🟩 디버그용 이미지 시각화 (캐릭터 및 아이템)
-  let margin = 20;
-  let size = 48; // 출력 이미지 크기
-  let y = 600; // 출력 시작 위치
+  player1.update();
+  player1.draw();
+  player2.update();
+  player2.draw();
 
-  textSize(14);
-  fill(0);
-  noStroke();
+  handleProjectiles();
+  handleBombs();
+  handleSpecialProjectiles();
 
-  // Player 1 이미지
-  text("Player 1", margin, y);
-  y += margin;
-  for (const state in P1imgs) {
-    text(state, margin, y + size / 2);
-    for (let i = 0; i < P1imgs[state].length; i++) {
-      image(P1imgs[state][i], margin + 80 + i * (size + 10), y, size, size);
-    }
-    y += size + 20;
-  }
-
-  // Player 2 이미지
-  y += margin;
-  text("Player 2", margin, y);
-  y += margin;
-  for (const state in P2imgs) {
-    text(state, margin, y + size / 2);
-    for (let i = 0; i < P2imgs[state].length; i++) {
-      image(P2imgs[state][i], margin + 80 + i * (size + 10), y, size, size);
-    }
-    y += size + 20;
-  }
-
-  // 아이템 이미지
-  y += margin * 2;
-  text("Items (raw list)", margin, y);
-  y += margin;
-
-  const rawItems = [
-    { name: "Mushroom", img: mushImg },
-    { name: "Poison", img: poisonImg },
-    { name: "Giant", img: giantImg },
-    { name: "Fire Normal", img: fireImg_normal },
-    { name: "Bomb", img: bombImg },
-    { name: "Fire Inchant", img: fireImg_inchant },
-    { name: "Missile", img: missile }
-  ];
-
-  for (let i = 0; i < rawItems.length; i++) {
-    const x = margin + i * (size + 30);
-    image(rawItems[i].img, x, y, size, size);
-    textAlign(CENTER);
-    text(rawItems[i].name, x + size / 2, y + size + 14);
-  }
-
-  // 🟦 itemimgs 객체 기반 출력
-  y += size + 50;
-  text("Items (from itemimgs)", margin, y);
-  y += margin;
-
-  let i = 0;
-  for (const key in itemimgs) {
-    const x = margin + i * (size + 30);
-    image(itemimgs[key][0], x, y, size, size);
-    textAlign(CENTER);
-    text(key, x + size / 2, y + size + 14);
-    i++;
-  }
+  
 }
 
 
@@ -415,4 +493,11 @@ function keyPressed(){
   if(key === ' '){//spacebar(임시시)
     backgroundManager.modeChange();
   }
+  player1.handleKeyPressed(key);
+  player2.handleKeyPressed(key);
 }
+function keyReleased() {
+  player1.handleKeyReleased(key);
+  player2.handleKeyReleased(key);
+}
+
