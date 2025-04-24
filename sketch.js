@@ -22,6 +22,20 @@ function preload() {
   spriteSheets.tileset = loadImage("assets/Mario-Tileset.png");
 
 }
+
+function applyChromaKey(img, keyColor = {r:147, g: 187, b:236}) {
+  img.loadPixels();
+  for (let i = 0; i < img.pixels.length; i += 4) {
+    const r = img.pixels[i];
+    const g = img.pixels[i+1];
+    const b = img.pixels[i+2];
+    if (r === keyColor.r && g === keyColor.g && b === keyColor.b) {
+      img.pixels[i+3] = 0;
+    }
+  }
+  img.updatePixels();
+}
+
 class Background {
   constructor(dayImg, nightImg) {
     this.bgDay = dayImg;
@@ -110,6 +124,7 @@ class Player {
       this.vy = 0;
       this.onGround = true;
       this.jumpCount = 0;
+        this.state = "idle";
     } 
     else {
       this.onGround = false;
@@ -122,8 +137,6 @@ class Player {
       this.state = "dead";
       this.respawn();
     }
-
-    this.animationCnt++;
   }
 
   respawn(){
@@ -142,13 +155,14 @@ class Player {
 
   //3 attack logic
   shoot() {
-    if (this.skill.fastFire || frameCount % 20 === 0) {
-      const direction = this.facing === "right" ? 20 : -20;
-      projectiles.push(new Projectile(this.x, this.y, direction));
-    }  
+    console.log("shoot");
+    const dir = this.facing === 'right' ? 20 : -20;
+    const proj = new Projectile(this.x + this.width/2, this.y + this.height/2, dir);
+    projectiles.push(proj);
   }
 
   dropBomb() {
+    console.log("bomb");
     const bombX = this.x + this.width / 2;
     const bombY = this.y;
     bombs.push(new Bomb(bombX, bombY));
@@ -194,22 +208,21 @@ class Player {
 
   draw() {
     const img = this.imgSet[this.state][this.frame];
-    push();                      // 1) 상태 저장
+    push();
     if (this.facing === 'left') {
-      // (선택) 기준점을 옮긴 뒤 뒤집으면 좀 더 직관적입니다.
       translate(this.x + this.width, this.y);
       scale(-1,1);
       image(img, 0, 0, this.width, this.height);
     } else {
       image(img, this.x, this.y, this.width, this.height);
     }
-    pop();                       // 2) 좌표계 원상복구
+    pop();
   }
   
 }
 
 class Projectile {
-  constructor(x, y, vx, width, height) {
+  constructor(x, y, vx, width = 8, height = 8) {
     this.x = x;
     this.y = y;
     this.vx = vx;
@@ -237,7 +250,7 @@ class Projectile {
 
   draw() {
     fill(255, 100, 0);
-    ellipse(this.x, this.y, this.width, this.height);
+    rect(this.x, this.y, this.width, this.height);
   }
 
   destroy() {
@@ -246,6 +259,7 @@ class Projectile {
 
   // 충돌 체크 메서드
   hits(target) {
+    console.log("shoot hit!");
     return (
       this.x < target.x + target.width &&
       this.x + this.width > target.x &&
@@ -262,7 +276,7 @@ class Bomb {
     this.y = y;
     this.width = 16;
     this.height = 16;
-    this.timer = 120;
+    this.timer = 100;
   }
 
   update() {
@@ -274,6 +288,7 @@ class Bomb {
 
   explode() {
     console.log("exploded");
+  
   }
 
   draw() {
@@ -327,6 +342,7 @@ function handleProjectiles() {
     projectiles[i].draw();
     if (projectiles[i].destroy()) {
       projectiles.splice(i, 1);
+      console.log("shootend");
     }
   }
 }
@@ -336,7 +352,7 @@ function handleBombs() {
     const b = bombs[i];
     b.update();
     b.draw();
-    if (b.exploded) {
+    if (b.explode) {
       bombs.splice(i, 1); // 제거
     }
   }
@@ -357,115 +373,72 @@ let P2imgs = [];
 let itemimgs = [];
 function setup() {
   createCanvas(800, 1600);
-  const bgsource = spriteSheets.backgrounds;
-  const bgWidth = 512;
-  const bgHeight = 512
-  const bgDay = createImage(bgWidth, bgHeight);
-  bgDay.copy(bgsource, 
-    514, 1565, bgWidth, bgHeight, 
-    0, 0, bgWidth, bgHeight);
-  const bgNight = createImage(bgWidth, bgHeight);
-  bgNight.copy(bgsource, 
-    514, 5721, bgWidth, bgHeight, 
-    0, 0, bgWidth, bgHeight);
+
+  const bgsrc = spriteSheets.backgrounds;
+  const w = 512, h = 512;
+  const bgDay = createImage(w, h), bgNight = createImage(w, h);
+  bgDay.copy(bgsrc, 514, 1565, w, h, 0, 0, w, h);
+  bgNight.copy(bgsrc, 514, 5721, w, h, 0, 0, w, h);
   backgroundManager = new Background(bgDay, bgNight);
-  console.log("background load done...");
-  //background setup done...
-  //player key setting
-  controlsP1 = {
-    left: 'ArrowLeft',
-    right: 'ArrowRight',
-    jump: 'ArrowUp',
-    attack: '[',
-    bomb: ']'
+
+  controlsP1 = { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'[', bomb:']' };
+  controlsP2 = { left:'a',         right:'d',          jump:'w',      attack:'t', bomb:'y' };
+
+  const chracterSrc = spriteSheets.characters;
+  const cw = 32, ch = 32;
+  // Mario frames
+  const marioIdle    = createImage(cw,ch); marioIdle.copy(chracterSrc, 1,   98, cw,ch, 0,0, cw,ch);
+  const marioWalk1   = createImage(cw,ch); marioWalk1.copy(chracterSrc,75,   98, cw,ch, 0,0, cw,ch);
+  const marioWalk2   = createImage(cw,ch); marioWalk2.copy(chracterSrc,108,  98, cw,ch, 0,0, cw,ch);
+  const marioWalk3   = createImage(cw,ch); marioWalk3.copy(chracterSrc,141,  98, cw,ch, 0,0, cw,ch);
+  const marioJump    = createImage(cw,ch); marioJump.copy(chracterSrc,215,98, cw,ch, 0,0, cw,ch);
+  const marioAttack  = createImage(cw,ch); marioAttack.copy(chracterSrc,627,98, cw,ch, 0,0, cw,ch);
+  [marioIdle, marioWalk1, marioWalk2, marioWalk3, marioJump, marioAttack]
+    .forEach(img => applyChromaKey(img, {r:147, g:187, b:236}));
+  P1imgs = { idle:[marioIdle], walk:[marioWalk1,marioWalk2,marioWalk3], jump:[marioJump], shoot:[marioAttack] };
+
+  // Luigi frames
+  const luigiIdle    = createImage(cw,ch); luigiIdle.copy(chracterSrc, 1, 629, cw,ch,0,0, cw,ch);
+  const luigiWalk1   = createImage(cw,ch); luigiWalk1.copy(chracterSrc,75,629, cw,ch,0,0, cw,ch);
+  const luigiWalk2   = createImage(cw,ch); luigiWalk2.copy(chracterSrc,108,629, cw,ch,0,0, cw,ch);
+  const luigiWalk3   = createImage(cw,ch); luigiWalk3.copy(chracterSrc,141,629,cw,ch,0,0, cw,ch);
+  const luigiJump    = createImage(cw,ch); luigiJump.copy(chracterSrc,215,629,cw,ch,0,0, cw,ch);
+  const luigiAttack  = createImage(cw,ch); luigiAttack.copy(chracterSrc,627,629,cw,ch,0,0, cw,ch);
+  [luigiIdle, luigiWalk1, luigiWalk2, luigiWalk3, luigiJump, luigiAttack]
+    .forEach(img => applyChromaKey(img, {r:147, g:187, b:236}));
+  P2imgs = { idle:[luigiIdle], walk:[luigiWalk1,luigiWalk2,luigiWalk3], jump:[luigiJump], shoot:[luigiAttack] };
+
+  const specialSrc = spriteSheets.specialweapon;
+  const ow = 16, oh = 16;
+  // 버섯
+  const mushImg    = createImage(ow, oh);      mushImg.copy(chracterSrc, 1, 2126, ow, oh, 0, 0, ow, oh);
+  // 독
+  const poisonImg  = createImage(ow, oh);      poisonImg.copy(chracterSrc, 1, 2143, ow, oh, 0, 0, ow, oh);
+  // 거대 버섯
+  const giantImg   = createImage(2*ow, 2*oh);  giantImg.copy(chracterSrc, 35, 2143, 2*ow,2*oh, 0, 0, 2*ow, 2*oh);
+  // 파이어
+  const fireImg    = createImage(ow/2, oh/2);  fireImg.copy(chracterSrc, 101, 2177, ow/2,oh/2, 0,0, ow/2, oh/2);
+  // 폭탄
+  const bombImg    = createImage(ow, oh);      bombImg.copy(chracterSrc, 194, 2143, ow,oh, 0,0, ow, oh);
+  // 강화 파이어
+  const fireInchImg= createImage(2*ow, oh);    fireInchImg.copy(specialSrc, 258, 195, 2*ow, oh/2, 0, 0, 2*ow, oh/2);
+  // 대형 미사일
+  const missileImg = createImage(4*ow,4*oh);   missileImg.copy(specialSrc, 127, 356, 4*ow, 4*oh, 0, 0, 4*ow, 4*oh);
+  [mushImg, poisonImg, giantImg, fireImg, bombImg, fireInchImg, missileImg]
+    .forEach(img => applyChromaKey(img, {r:147, g:187, b:236}));
+  const itemimgs = {
+    mush: [mushImg],
+    poison: [poisonImg],
+    giant: [giantImg],
+    fire: [fireImg],
+    fire_reinforce: [fireInchImg],
+    bomb: [bombImg],
+    bigmissile: [missileImg]
   };
-  
-  controlsP2 = {
-    left: 'a',
-    right: 'd',
-    jump: 'w',
-    attack: 't',
-    bomb: 'y'
-  };
-  console.log("player key setting done...");
-  //player img setting
-  const chracterSource = spriteSheets.characters;
-  const chracterWidth = 32;
-  const chracterHeight = 32;
-
-  const marioIdle = createImage(chracterWidth, chracterHeight);
-  marioIdle.copy(chracterSource, 1, 98, chracterWidth, chracterHeight, 0, 0, chracterWidth, chracterHeight);
-  const marioWalk1 = createImage(chracterWidth, chracterHeight);
-  marioWalk1.copy(chracterSource, 75, 98, chracterWidth, chracterHeight, 0, 0, chracterWidth, chracterHeight);
-  const marioWalk2 = createImage(chracterWidth, chracterHeight);
-  marioWalk2.copy(chracterSource, 108, 98, chracterWidth, chracterHeight, 0, 0, chracterWidth, chracterHeight);
-  const marioWalk3 = createImage(chracterWidth, chracterHeight);
-  marioWalk3.copy(chracterSource, 141, 98, chracterWidth, chracterHeight, 0, 0, chracterWidth, chracterHeight);
-  const marioJump = createImage(chracterWidth, chracterHeight);
-  marioJump.copy(chracterSource, 215, 98, chracterWidth, chracterHeight, 0, 0, chracterWidth, chracterHeight);
-  const marioAttack = createImage(chracterWidth, chracterHeight);
-  marioAttack.copy(chracterSource, 627, 98, chracterWidth, chracterHeight, 0, 0, chracterWidth, chracterHeight);
-  P1imgs = {
-    idle: [marioIdle],              // idle은 이미지 1장만
-    walk: [marioWalk1, marioWalk2, marioWalk3],  // walk는 3장으로 애니메이션
-    jump: [marioJump],              // jump는 이미지 1장
-    shoot: [marioAttack]             // shoot도 이미지 1장
-  }
-
-  const luigiIdle = createImage(chracterWidth, chracterHeight);
-  luigiIdle.copy(chracterSource, 1, 629, chracterWidth, chracterHeight, 0, 0, chracterWidth, chracterHeight);
-  const luigiWalk1 = createImage(chracterWidth, chracterHeight);
-  luigiWalk1.copy(chracterSource, 75, 629, chracterWidth, chracterHeight, 0, 0, chracterWidth, chracterHeight);
-  const luigiWalk2 = createImage(chracterWidth, chracterHeight);
-  luigiWalk2.copy(chracterSource, 108, 629, chracterWidth, chracterHeight, 0, 0, chracterWidth, chracterHeight);
-  const luigiWalk3 = createImage(chracterWidth, chracterHeight);
-  luigiWalk3.copy(chracterSource, 141, 629, chracterWidth, chracterHeight, 0, 0, chracterWidth, chracterHeight);
-  const luigiJump = createImage(chracterWidth, chracterHeight);
-  luigiJump.copy(chracterSource, 215, 629, chracterWidth, chracterHeight, 0, 0, chracterWidth, chracterHeight);
-  const luigiAttack = createImage(chracterWidth, chracterHeight);
-  luigiAttack.copy(chracterSource, 627, 629, chracterWidth, chracterHeight, 0, 0, chracterWidth, chracterHeight);
-  P2imgs = {
-    idle: [luigiIdle],              // idle은 이미지 1장만
-    walk: [luigiWalk1, luigiWalk2, luigiWalk3],  // walk는 3장으로 애니메이션
-    jump: [luigiJump],              // jump는 이미지 1장
-    shoot: [luigiAttack]             // shoot도 이미지 1장
-  }
-  console.log("player image loading done...");
-  // chracter image setting done..
-  // other sprite loading -> item : character, enemy에 몇개씩 있음음 그림마다 다 달라서 그냥 다 정의할게요 귀찮다..
-  const specialSource = spriteSheets.specialweapon;
-  const objWidth = 16;
-  const objHeight = 16;
-
-  const mushImg = createImage(objWidth, objHeight);
-  mushImg.copy(chracterSource, 1, 2126, objWidth, objHeight, 0, 0, objWidth, objHeight);
-  const poisonImg = createImage(objWidth, objHeight);
-  poisonImg.copy(chracterSource, 1, 2143, objWidth, objHeight, 0, 0, objWidth, objHeight);
-  const giantImg = createImage(2 * objWidth, 2 * objHeight);
-  giantImg.copy(chracterSource, 35, 2143, 2 * objWidth, 2 * objHeight, 0, 0, 2 * objWidth, 2 * objHeight);
-  const fireImg_normal = createImage(objWidth / 2, objHeight / 2);
-  fireImg_normal.copy(chracterSource, 101, 2177, objWidth / 2, objHeight / 2, 0, 0, objWidth / 2, objHeight / 2);
-  const bombImg = createImage(objWidth, objHeight);
-  bombImg.copy(chracterSource, 194, 2143, objWidth, objHeight, 0, 0, objWidth, objHeight);
-  const fireImg_inchant = createImage(2 * objWidth, objHeight);
-  fireImg_inchant.copy(specialSource, 258, 191, 2 * objWidth, objHeight, 0, 0, 2 * objWidth, objHeight);
-  const missile = createImage(4 * objWidth, 4 * objHeight);
-  missile.copy(specialSource, 127, 356, 4 * objWidth, 4 * objHeight, 0, 0, 4 * objWidth, 4 * objHeight);
-
-  itemimgs = {
-    mush : [mushImg],
-    poison : [poisonImg],
-    giant : [giantImg],
-    fire : [fireImg_normal],
-    fire_reinforce : [fireImg_inchant],
-    bomb : [bombImg],
-    bigmissile : [missile]
-  }
-  console.log("obj img loading done...");
-  //object img loading done...
 
   player1 = new Player(0, 0, P1imgs, controlsP1);
   player2 = new Player(0, 0, P2imgs, controlsP2);
+
 
 }
 
@@ -488,9 +461,8 @@ function draw() {
 }
 
 
-
 function keyPressed(){
-  if(key === ' '){//spacebar(임시시)
+  if(key === ' '){//spacebar(임시)
     backgroundManager.modeChange();
   }
   player1.handleKeyPressed(key);
