@@ -12,28 +12,9 @@ let deathZoneX;
 let deathZoneY = 600;
 let controlsP1, controlsP2;
 
-let spriteSheets = {};
-
 function preload() {
   //sprite download
-  spriteSheets.backgrounds= loadImage("assets/Mario-Background.png");
-  spriteSheets.characters = loadImage("assets/Mario-Character+Item.png");
-  spriteSheets.specialweapon = loadImage("assets/Mario-Enemy.png");
-  spriteSheets.tileset = loadImage("assets/Mario-Tileset.png");
-
-}
-
-function applyChromaKey(img, keyColor = {r:147, g: 187, b:236}) {
-  img.loadPixels();
-  for (let i = 0; i < img.pixels.length; i += 4) {
-    const r = img.pixels[i];
-    const g = img.pixels[i+1];
-    const b = img.pixels[i+2];
-    if (r === keyColor.r && g === keyColor.g && b === keyColor.b) {
-      img.pixels[i+3] = 0;
-    }
-  }
-  img.updatePixels();
+  preloadAssets();
 }
 
 class Background {
@@ -102,6 +83,7 @@ class Player {
 
   update() {
     // moving
+    console.log(this.vx);
     if (this.keys[this.controls.left]) {
       this.vx = -5;
       this.facing = "left";
@@ -156,8 +138,10 @@ class Player {
   //3 attack logic
   shoot() {
     console.log("shoot");
+    const spawnX = this.facing === 'right' ? this.x + this.width : this.x;
+    const spawnY = this.y + this.height / 2;
     const dir = this.facing === 'right' ? 20 : -20;
-    const proj = new Projectile(this.x + this.width/2, this.y + this.height/2, dir);
+    const proj = new Projectile(spawnX, spawnY, dir);
     projectiles.push(proj);
   }
 
@@ -277,12 +261,13 @@ class Bomb {
     this.width = 16;
     this.height = 16;
     this.timer = 100;
+    this.shouldDestroy = false;
   }
 
   update() {
     this.timer --;
     if(this.timer <=0){
-      this.explode();
+      this.shouldDestroy = true;
     }
   }
 
@@ -294,6 +279,10 @@ class Bomb {
   draw() {
     fill(255,0,0);
     rect(this.x, this.y, this.width, this.height);
+  }
+
+  destroy() {
+    return this.shouldDestroy;
   }
 }
 
@@ -328,6 +317,10 @@ class BigMissile {
   destroy() {
     return this.shouldDestroy;
   }
+  explode() {
+    console.log("explode");
+  }
+
 }
 
 class Item {
@@ -349,10 +342,11 @@ function handleProjectiles() {
 
 function handleBombs() {
   for (let i = bombs.length - 1; i >= 0; i--) {
-    const b = bombs[i];
-    b.update();
-    b.draw();
-    if (b.explode) {
+    bombs[i];
+    bombs[i].update([player1, player2]);
+    bombs[i].draw();
+    if (bombs[i].destroy()) {
+      bombs[i].explode();
       bombs.splice(i, 1); // 제거
     }
   }
@@ -368,73 +362,17 @@ function handleSpecialProjectiles() {
 }
 
 let backgroundManager; 
-let P1imgs = [];
-let P2imgs = [];
-let itemimgs = [];
 function setup() {
   createCanvas(800, 1600);
-
+  sliceImages();
   const bgsrc = spriteSheets.backgrounds;
   const w = 512, h = 512;
-  const bgDay = createImage(w, h), bgNight = createImage(w, h);
-  bgDay.copy(bgsrc, 514, 1565, w, h, 0, 0, w, h);
+  const bgDay   = createImage(w, h);
+  const bgNight = createImage(w, h);
+  bgDay.copy(bgsrc,   514, 1565, w, h, 0, 0, w, h);
   bgNight.copy(bgsrc, 514, 5721, w, h, 0, 0, w, h);
   backgroundManager = new Background(bgDay, bgNight);
 
-  controlsP1 = { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'[', bomb:']' };
-  controlsP2 = { left:'a',         right:'d',          jump:'w',      attack:'t', bomb:'y' };
-
-  const chracterSrc = spriteSheets.characters;
-  const cw = 32, ch = 32;
-  // Mario frames
-  const marioIdle    = createImage(cw,ch); marioIdle.copy(chracterSrc, 1,   98, cw,ch, 0,0, cw,ch);
-  const marioWalk1   = createImage(cw,ch); marioWalk1.copy(chracterSrc,75,   98, cw,ch, 0,0, cw,ch);
-  const marioWalk2   = createImage(cw,ch); marioWalk2.copy(chracterSrc,108,  98, cw,ch, 0,0, cw,ch);
-  const marioWalk3   = createImage(cw,ch); marioWalk3.copy(chracterSrc,141,  98, cw,ch, 0,0, cw,ch);
-  const marioJump    = createImage(cw,ch); marioJump.copy(chracterSrc,215,98, cw,ch, 0,0, cw,ch);
-  const marioAttack  = createImage(cw,ch); marioAttack.copy(chracterSrc,627,98, cw,ch, 0,0, cw,ch);
-  [marioIdle, marioWalk1, marioWalk2, marioWalk3, marioJump, marioAttack]
-    .forEach(img => applyChromaKey(img, {r:147, g:187, b:236}));
-  P1imgs = { idle:[marioIdle], walk:[marioWalk1,marioWalk2,marioWalk3], jump:[marioJump], shoot:[marioAttack] };
-
-  // Luigi frames
-  const luigiIdle    = createImage(cw,ch); luigiIdle.copy(chracterSrc, 1, 629, cw,ch,0,0, cw,ch);
-  const luigiWalk1   = createImage(cw,ch); luigiWalk1.copy(chracterSrc,75,629, cw,ch,0,0, cw,ch);
-  const luigiWalk2   = createImage(cw,ch); luigiWalk2.copy(chracterSrc,108,629, cw,ch,0,0, cw,ch);
-  const luigiWalk3   = createImage(cw,ch); luigiWalk3.copy(chracterSrc,141,629,cw,ch,0,0, cw,ch);
-  const luigiJump    = createImage(cw,ch); luigiJump.copy(chracterSrc,215,629,cw,ch,0,0, cw,ch);
-  const luigiAttack  = createImage(cw,ch); luigiAttack.copy(chracterSrc,627,629,cw,ch,0,0, cw,ch);
-  [luigiIdle, luigiWalk1, luigiWalk2, luigiWalk3, luigiJump, luigiAttack]
-    .forEach(img => applyChromaKey(img, {r:147, g:187, b:236}));
-  P2imgs = { idle:[luigiIdle], walk:[luigiWalk1,luigiWalk2,luigiWalk3], jump:[luigiJump], shoot:[luigiAttack] };
-
-  const specialSrc = spriteSheets.specialweapon;
-  const ow = 16, oh = 16;
-  // 버섯
-  const mushImg    = createImage(ow, oh);      mushImg.copy(chracterSrc, 1, 2126, ow, oh, 0, 0, ow, oh);
-  // 독
-  const poisonImg  = createImage(ow, oh);      poisonImg.copy(chracterSrc, 1, 2143, ow, oh, 0, 0, ow, oh);
-  // 거대 버섯
-  const giantImg   = createImage(2*ow, 2*oh);  giantImg.copy(chracterSrc, 35, 2143, 2*ow,2*oh, 0, 0, 2*ow, 2*oh);
-  // 파이어
-  const fireImg    = createImage(ow/2, oh/2);  fireImg.copy(chracterSrc, 101, 2177, ow/2,oh/2, 0,0, ow/2, oh/2);
-  // 폭탄
-  const bombImg    = createImage(ow, oh);      bombImg.copy(chracterSrc, 194, 2143, ow,oh, 0,0, ow, oh);
-  // 강화 파이어
-  const fireInchImg= createImage(2*ow, oh);    fireInchImg.copy(specialSrc, 258, 195, 2*ow, oh/2, 0, 0, 2*ow, oh/2);
-  // 대형 미사일
-  const missileImg = createImage(4*ow,4*oh);   missileImg.copy(specialSrc, 127, 356, 4*ow, 4*oh, 0, 0, 4*ow, 4*oh);
-  [mushImg, poisonImg, giantImg, fireImg, bombImg, fireInchImg, missileImg]
-    .forEach(img => applyChromaKey(img, {r:147, g:187, b:236}));
-  const itemimgs = {
-    mush: [mushImg],
-    poison: [poisonImg],
-    giant: [giantImg],
-    fire: [fireImg],
-    fire_reinforce: [fireInchImg],
-    bomb: [bombImg],
-    bigmissile: [missileImg]
-  };
 
   player1 = new Player(0, 0, P1imgs, controlsP1);
   player2 = new Player(0, 0, P2imgs, controlsP2);
