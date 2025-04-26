@@ -8,7 +8,7 @@ function preload() {
 }
 
 function setup() {
-  createCanvas(800, 1600);
+  createCanvas(800, 600);
   sliceAssets();
 
   controlsP1 = { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'[', bomb:']' };
@@ -74,6 +74,25 @@ class Background {
     }
   }
 }
+
+class Tile {
+  constructor(x,y,type) {
+    this.x=x; this.y=y; this.type=type;
+    this.img=tileimgs[type][0];
+    this.width=32; this.height=32;
+  }
+  draw() {
+    image(this.img,this.x,this.y,this.width,this.height);
+  }
+  // Full AABB for breakable & question blocks
+  collides(x,y,w,h) {
+    return (
+      x < this.x+this.width && x+w > this.x &&
+      y < this.y+this.height && y+h > this.y
+    );
+  }
+}
+
 class Player {
   constructor(x, y, imgSet, controls) {
     this.x = x;  this.y = y;
@@ -91,9 +110,19 @@ class Player {
     this.facing = "right";
     this.state = "idle";
     this.frame = 0;
+    this.attackTimer = 0;
   }
 
   update() {
+    // decrement attack timer
+    if (this.attackTimer > 0) {
+      this.attackTimer--;
+      if (this.attackTimer === 0) {
+        // return to appropriate post-attack state
+        this.state = this.onGround ? 'idle' : 'jump';
+      }
+    }
+
     let inputVX = 0;
     if (this.keys[this.controls.left])      { inputVX = -5; this.facing = "left"; }
     else if (this.keys[this.controls.right]){ inputVX = 5;  this.facing = "right"; }
@@ -103,15 +132,17 @@ class Player {
     this.x  += this.vx;
     this.y  += this.vy;
 
+    
     if (this.y + this.height >= groundY) {
       this.y = groundY - this.height;
       this.vy = 0;
       this.onGround = true;
       this.jumpCount = 0;
-      this.state = "idle";
-    } else {
+      if (this.attackTimer === 0) this.state = 'idle';
+    } 
+    else {
       this.onGround = false;
-      this.state = "jump";
+      if (this.attackTimer === 0) this.state = 'jump';
     }
 
     this.knockbackVX *= 0.9;
@@ -131,7 +162,7 @@ class Player {
 
   jump() {
     if (this.jumpCount < 2) {
-      this.vy = -15;
+      this.vy = -12;
       this.jumpCount++;
     }
   }
@@ -141,12 +172,19 @@ class Player {
     const spawnY = this.y + this.height/2;
     const dir = this.facing === 'right' ? 20 : -20;
     projectiles.push(new Projectile(spawnX, spawnY, dir));
+    this.state = 'shoot';
+    this.attackTimer = 10;
+    this.frame = 0;
   }
 
   dropBomb() {
-    const bx = this.x + this.width/2;
-    const by = this.y + this.height;
-    bombs.push(new Bomb(bx, by));
+    const bx = this.facing === 'right' ? this.x + this.width : this.x - 32; 
+    const by = this.y;
+    const v_bomb = this.facing === 'right' ? 5 : -5; 
+    bombs.push(new Bomb(bx, by, v_bomb));
+    this.state = 'shoot';
+    this.attackTimer = 10;
+    this.frame = 0;
   }
 
   fireBigMissile() {
@@ -155,8 +193,11 @@ class Player {
     const spawnX = this.facing === 'right'
       ? this.x + this.width
       : this.x - mW;
-    const spawnY = this.y + this.height - mH;
+    const spawnY = this.y - this.height;
     specialProjectiles.push(new BigMissile(spawnX, spawnY, dir));
+    this.state = 'shoot';
+    this.attackTimer = 15;
+    this.frame = 0;
   }
 
   handleKeyPressed(k) {
@@ -235,15 +276,17 @@ class Projectile {
 
 
 class Bomb {
-  constructor(x, y) {
+  constructor(x, y, vx) {
     this.x = x;
     this.y = y;
-    this.width  = 16;
-    this.height = 16;
+    this.vx = vx; this.vy = 0;
+    this.width  = 32;
+    this.height = 32;
     
-    this.timer        = 60;    // 폭발 대기 프레임 수
+    this.timer        = 120;    // 폭발 대기 프레임 수
     this.explodeTimer = 15;    // 폭발 시각화 지속 프레임 수
     this.exploded     = false; // 폭발 상태 플래그
+    this.warning      = false;
     this.shouldRemove = false; // 완전 제거 플래그
     
     this.radius = 100;         // 넉백 및 시각화 반경(이 값을 키워 범위 확대)
@@ -253,11 +296,24 @@ class Bomb {
     if (!this.exploded) {
       // 타이머가 0 이 되면 폭발 시작
       this.timer--;
+      this.vy += gravity;
+      this.x  += this.vx;
+      this.y  += this.vy;
+      // 바닥 튕김
+      if (this.y + this.height >= groundY) {
+        this.y = groundY - this.height;
+        this.vy = -0.5 * this.vy;
+        this.vx = 0.7 * this.vx;
+      }
+      if(this.timer <= 60) {
+        this.warning = true;
+      }
       if (this.timer <= 0) {
         this.exploded = true;
         this.explode();  // 넉백 한 번 적용
       }
-    } else {
+    }
+    else {
       // 폭발 시각화가 끝나면 제거
       this.explodeTimer--;
       if (this.explodeTimer <= 0) {
@@ -283,22 +339,27 @@ class Bomb {
       }
     });
   }
+  
 
   draw() {
     if (!this.exploded) {
-      image(itemimgs.bomb[0], this.x, this.y, this.width * 2, this.height * 2);
-    } else {
-      // 폭발 중일 땐 커다란 반투명 원으로 시각화
-      noFill();
-      stroke(255, 150, 0);
-      strokeWeight(4);
-      ellipse(
-        this.x + this.width/2,
-        this.y + this.height/2,
-        this.radius * 2,
-        this.radius * 2
+      if(this.warning){
+        image(itemimgs.bomb_warning[0], this.x, this.y, this.width, this.height);
+      }
+      else {
+        image(itemimgs.bomb[0], this.x, this.y, this.width, this.height);
+      }
+      
+    }
+    else {
+      const img = itemimgs.explosion[0];
+      image(
+        img,
+        this.x - this.width,
+        this.y - this.height,
+        3*this.width,
+        3*this.height
       );
-      noStroke();
     }
   }
 
@@ -315,33 +376,40 @@ class BigMissile {
     this.width = 64;
     this.height = 64;
     this.vx = vx;
-    // 하단 정렬: 플레이어 바닥 높이에 맞추기 위해 y에서 2배 높이만큼 올림
     this.x = x;
     this.y = y - this.height;
   }
 
   update(targets) {
+    // 미사일 이동
     this.x += this.vx;
 
     for (const t of targets) {
-      if (this.hits(t)) {
-        // 강력한 넉백
-        const force = this.vx * 2;
-        t.knockbackVX += force;
-        // 겹침 방지: 대상 위치 조정
-        const w = this.width * 2;
-        if (this.vx > 0) {
-          // 미사일이 오른쪽으로 이동 중이면 대상은 미사일 우측으로 밀어냄
-          t.x = this.x + w;
-        } else {
-          // 왼쪽 이동 중이면 대상은 미사일 좌측으로
-          t.x = this.x - t.width;
-        }
-        // 미사일은 충돌로 사라지지 않음
-        break;
+      // AABB 충돌 체크
+      const w = this.width * 2;
+      const h = this.height * 2;
+      const overlapX = this.x < t.x + t.width && this.x + w > t.x;
+      const overlapY = this.y < t.y + t.height && this.y + h > t.y;
+      if (!overlapX || !overlapY) continue;
+
+      // 플레이어가 미사일 위에 서 있는지 검사
+      const playerBottom = t.y + t.height;
+      const missileTop = this.y;
+      // 아래로 충돌 시(떨어져서 올라탄 경우)
+      if (t.vy > 0 && playerBottom <= missileTop + h * 0.1) {
+        // 지면 위에 착지 처리
+        t.y = missileTop - t.height;
+        t.vy = 0;
       }
+      else {
+        // 측면 충돌 시 겹침 방지용 강제 이동
+        if (this.vx > 0) t.x = this.x + w;
+        else               t.x = this.x - t.width;
+      }
+      break;
     }
 
+    // 수명 검사
     if (millis() - this.spawnTime > this.lifetime) {
       this.shouldDestroy = true;
     }
