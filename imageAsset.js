@@ -9,6 +9,9 @@ function preloadAssets() {
   spriteSheets.characters    = loadImage("assets/Mario-Character+Item.png");
   spriteSheets.specialweapon = loadImage("assets/Mario-Enemy.png");
   spriteSheets.tileset       = loadImage("assets/Mario-Tileset.png");
+
+  soundFormats('mp3', 'wav');
+
 }
 
 function sliceAssets() {
@@ -42,6 +45,7 @@ function sliceAssets() {
   const mj = createImage(cw,ch); mj.copy(src,215,98, cw,ch,0,0, cw,ch);
   const ma = createImage(cw,ch); ma.copy(src,627,98, cw,ch,0,0, cw,ch);
   [mi,mw1,mw2,mw3,mj,ma].forEach(img=>applyChromaKey(img));
+  
   P1imgs = { idle:[mi], walk:[mw1,mw2,mw3], jump:[mj], shoot:[ma] };
 
   // 5) 캐릭터 프레임 슬라이스 (Luigi)
@@ -52,6 +56,7 @@ function sliceAssets() {
   const lj = createImage(cw,ch); lj.copy(src,215,629,cw,ch,0,0,cw,ch);
   const la = createImage(cw,ch); la.copy(src,627,629,cw,ch,0,0,cw,ch);
   [li,lw1,lw2,lw3,lj,la].forEach(img=>applyChromaKey(img));
+
   P2imgs = { idle:[li], walk:[lw1,lw2,lw3], jump:[lj], shoot:[la] };
 
   // 6) 아이템 및 특수 투사체 프레임
@@ -60,13 +65,13 @@ function sliceAssets() {
   const mush = createImage(ow,oh); mush.copy(src,1,2126,ow,oh,0,0,ow,oh);
   const bombadd = createImage(ow,oh); bombadd.copy(spsrc, 39, 117, ow, oh, 0, 0, ow, oh);
   const poison= createImage(ow,oh); poison.copy(src,1,2143,ow,oh,0,0,ow,oh);
-  const giant = createImage(2*ow,2*oh); giant.copy(src,35,2143,2*ow,2*oh,0,0,2*ow,2*oh);
+  const giant = createImage(ow,oh); giant.copy(src,52,2126,ow,oh,0,0,ow,oh);
   const fire  = createImage(ow/2,oh/2); fire.copy(src,101,2177,ow/2,oh/2,0,0,ow/2,oh/2);
-  const fireinch = createImage(ow, oh); fireinch.copy(spsrc, 601, 751, ow, oh, 0, 0, ow, oh);
+  const fireench = createImage(ow, oh); fireench.copy(spsrc, 601, 751, ow, oh, 0, 0, ow, oh);
   const bomb  = createImage(ow,oh); bomb.copy(src,194,2143,ow,oh,0,0,ow,oh);
   const bm    = createImage(4*ow,4*oh); bm.copy(spsrc,127,356,4*ow,4*oh,0,0,4*ow,4*oh);
   const beffect = createImage(1.5*ow, 1.5*oh); beffect.copy(spsrc, 604, 413, 1.5*ow, 1.5*oh, 0, 0, 1.5*ow, 1.5*oh);
-  [mush,bombadd,poison,giant,fire,fireinch,bomb,bm, beffect].forEach(img=>applyChromaKey(img));
+  [mush,bombadd,poison,giant,fire,fireench,bomb,bm, beffect].forEach(img=>applyChromaKey(img));
   function applyColorFilter(img, delta) {
     // img.pixels 에 접근해 기존 색상을 유지하며 R 증가, G 감소
     img.loadPixels();
@@ -91,7 +96,7 @@ function sliceAssets() {
   applyColorFilter(bombWarn, {r: 150, g: 100, b:200} );
 
   itemimgs = {
-    mush:[mush], poison:[poison], giant:[giant], bombadd:[bombadd], fire_inchant:[fireinch],
+    mush:[mush], poison:[poison], giant:[giant], bombadd:[bombadd], fire_enchant:[fireench],
     fire:[fire], bomb:[bomb], bigmissile:[bm], bomb_warning:[bombWarn], explosion:[beffect]
   };
 
