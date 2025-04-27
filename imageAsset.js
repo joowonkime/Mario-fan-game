@@ -1,5 +1,5 @@
 let spriteSheets = {};
-let P1imgs = {}, P2imgs = {}, itemimgs = {}, tileimgs = {};
+let P1imgs = {}, P2imgs = {}, itemimgs = {}, tileimgs = {}, decoimgs = {};
 let backgroundManager;
 let gravity = 0.8;
 
@@ -58,13 +58,15 @@ function sliceAssets() {
   const spsrc = spriteSheets.specialweapon;
   const ow=16, oh=16;
   const mush = createImage(ow,oh); mush.copy(src,1,2126,ow,oh,0,0,ow,oh);
+  const bombadd = createImage(ow,oh); bombadd.copy(spsrc, 39, 117, ow, oh, 0, 0, ow, oh);
   const poison= createImage(ow,oh); poison.copy(src,1,2143,ow,oh,0,0,ow,oh);
   const giant = createImage(2*ow,2*oh); giant.copy(src,35,2143,2*ow,2*oh,0,0,2*ow,2*oh);
   const fire  = createImage(ow/2,oh/2); fire.copy(src,101,2177,ow/2,oh/2,0,0,ow/2,oh/2);
+  const fireinch = createImage(ow, oh); fireinch.copy(spsrc, 601, 751, ow, oh, 0, 0, ow, oh);
   const bomb  = createImage(ow,oh); bomb.copy(src,194,2143,ow,oh,0,0,ow,oh);
   const bm    = createImage(4*ow,4*oh); bm.copy(spsrc,127,356,4*ow,4*oh,0,0,4*ow,4*oh);
   const beffect = createImage(1.5*ow, 1.5*oh); beffect.copy(spsrc, 604, 413, 1.5*ow, 1.5*oh, 0, 0, 1.5*ow, 1.5*oh);
-  [mush,poison,giant,fire,bomb,bm, beffect].forEach(img=>applyChromaKey(img));
+  [mush,bombadd,poison,giant,fire,fireinch,bomb,bm, beffect].forEach(img=>applyChromaKey(img));
   function applyColorFilter(img, delta) {
     // img.pixels 에 접근해 기존 색상을 유지하며 R 증가, G 감소
     img.loadPixels();
@@ -89,7 +91,7 @@ function sliceAssets() {
   applyColorFilter(bombWarn, {r: 150, g: 100, b:200} );
 
   itemimgs = {
-    mush:[mush], poison:[poison], giant:[giant],
+    mush:[mush], poison:[poison], giant:[giant], bombadd:[bombadd], fire_inchant:[fireinch],
     fire:[fire], bomb:[bomb], bigmissile:[bm], bomb_warning:[bombWarn], explosion:[beffect]
   };
 
@@ -97,12 +99,26 @@ function sliceAssets() {
   const bb = createImage(ow, oh); bb.copy(tilesrc, 18, 23, ow, oh, 0, 0, ow, oh);
   const qb = createImage(ow, oh); qb.copy(tilesrc, 35, 23, ow, oh, 0, 0, ow, oh);
   const gb = createImage(ow, oh); gb.copy(tilesrc, 154, 142, ow, oh, 0, 0, ow, oh);
-  [bb, qb, gb].forEach(img => applyChromaKey(img));
+  const gb1 = createImage(ow, oh); gb1.copy(tilesrc, 171, 74, ow, oh, 0, 0, ow, oh);
+  [bb, qb, gb, gb1].forEach(img => applyChromaKey(img));
   tileimgs = {
     breakableblock:  [bb],
-    qustionblock:  [qb],
-    groundblock:  [gb]
+    questionblock:  [qb],
+    groundblock:  [gb],
+    groundblock1: [gb1]
   };
+  const gb2 = createImage(ow, oh); gb2.copy(tilesrc, 171, 91, ow, oh, 0, 0, ow, oh);
+  const breffect1 = createImage(2*ow, 2*oh); breffect1.copy(spsrc, 640, 1, 2*ow, 2*oh, 0, 0, 2*ow, 2*oh);
+  const breffect2 = createImage(2*ow, 2*oh); breffect2.copy(spsrc, 673, 1, 2*ow, 2*oh, 0, 0, 2*ow, 2*oh);
+  const breffect3 = createImage(2*ow, 2*oh); breffect3.copy(spsrc, 706, 1, 2*ow, 2*oh, 0, 0, 2*ow, 2*oh);
+  [gb2, breffect1, breffect2, breffect3].forEach(img => applyChromaKey(img));
+  decoimgs = {
+    groundblock2: [gb2],
+    breakeffect1: [breffect1],
+    breakeffect2: [breffect2],
+    breakeffect3: [breffect3]
+  };
+
 
 
 
