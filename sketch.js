@@ -2,64 +2,67 @@ let player1, player2;
 let tiles = [], decoTiles = [];
 let projectiles = [], specialProjectiles = [], bombs = [];
 let deathZoneY = 700;
-let groundY = [500, 400, 300, 200, 100];
 let controlsP1, controlsP2;
 let breakEffects = [];
 let items = [];
 let nextItemFrame = 0;
+let gravity = 0.8;
+let gameOver = false;
+let winner   = null;
+let victoryPlayed = false;
 const TILE_SIZE = 32;
+const groundY = [100, 200, 300, 400, 500, 550];
+//32, 64, 96, 128, 160, 192, 224, 256, 288, 320,
+//352, 384, 416, 
+//448, 480, 512, 544, 576, 608, 640, 672, 704, 736, //
 const mapLayout = [
-  // row 0 (y = groundY[0]–16): gb1 | question | gb1
+  // row 0 (y=100):  64~192 bb,      576~704 bb
   [
-    { x1:  32, x2:  256, type: 'groundblock1'  },
-    { x1: 272, x2:  528, type: null },
-    { x1: 544, x2:  768, type: 'groundblock1'  },
+    { x1:  224, x2: 544, type: 'breakableblock' },
   ],
-  // row 1 (y = groundY[1]–16): breakable | gb1 | breakable
+  // row 1 (y=200): 128~224 bb, 256~320 gb1, 352~416 null, 448~512 gb1, 544~640 bb
   [
-    { x1:  32, x2:  256, type: 'breakableblock' },
-    { x1: 272, x2:  528, type: 'groundblock1'   },
-    { x1: 544, x2:  768, type: 'breakableblock' },
+    { x1: 128, x2: 224, type: 'breakableblock' },
+    { x1: 256, x2: 320, type: 'groundblock1'   },
+    { x1: 352, x2: 416, type: null               },
+    { x1: 448, x2: 512, type: 'groundblock1'   },
+    { x1: 544, x2: 640, type: 'breakableblock' },
   ],
-  // row 2 (y = groundY[2]–16): gb1 | question | gb1
+  // row 2 (y=300):  64~704 gb1
   [
-    { x1:  32, x2:  256, type: 'groundblock1'  },
-    { x1: 272, x2:  528, type: 'breakableblock' },
-    { x1: 544, x2:  768, type: 'groundblock1'  },
+    { x1:  64, x2: 704, type: 'groundblock1' },
   ],
-  // row 3 (y = groundY[3]–16): breakable | gb1 | breakable
+  // row 3 (y=400): 256~512 gb1
   [
-    { x1:  32, x2:  256, type: 'breakableblock' },
-    { x1: 272, x2:  528, type: 'groundblock1'   },
-    { x1: 544, x2:  768, type: 'breakableblock' },
+    { x1: 256, x2: 512, type: 'groundblock1' },
   ],
-  // row 4 (y = groundY[4]–16): gb1 | (빈칸) | gb1
+  // row 4 (y=500): 128~224 gb1, 256~288 bb, 320~448 null, 480~512 bb, 544~640 gb1
   [
-    { x1:  32, x2:  256, type: 'groundblock1' },
-    { x1: 272, x2:  528, type: null           },
-    { x1: 544, x2:  768, type: 'groundblock1' },
+    { x1: 128, x2: 224, type: 'groundblock1'   },
+    { x1: 256, x2: 288, type: 'breakableblock' },
+    { x1: 320, x2: 448, type: null               },
+    { x1: 480, x2: 512, type: 'breakableblock' },
+    { x1: 544, x2: 640, type: 'groundblock1'   },
+  ],
+  // row 5 (y=550):  32~736 bb
+  [
+    { x1:  32, x2: 736, type: 'breakableblock' },
   ],
 ];
-
 function preload() {
   preloadAssets();
-  preloadSounds()
+  preloadSounds();
 }
 
 function setup() {
   createCanvas(800, 600);
   sliceAssets();
-  bgm.bgmGround.setLoop(true);
   bgm.bgmGround.setVolume(0.5);
+  bgm.bgmGround.setLoop(true)
   bgm.bgmGround.loop();
-  controlsP1 = {
-    left: 'ArrowLeft', right: 'ArrowRight',
-    jump: 'ArrowUp', attack: '[', bomb: ']', down: 'ArrowDown'
-  };
-  controlsP2 = {
-    left: 'a', right: 'd',
-    jump: 'w', attack: 't', bomb: 'y', down: 's'
-  };
+
+  controlsP1 = { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'[', bomb:']', down:'ArrowDown' };
+  controlsP2 = { left:'a', right:'d', jump:'w', attack:'t', bomb:'y', down:'s' };
 
   player1 = new Player(100, 100, P1imgs, controlsP1);
   player2 = new Player(200, 100, P2imgs, controlsP2);
@@ -67,7 +70,7 @@ function setup() {
   for (let row = 0; row < groundY.length; row++) {
     const y = groundY[row] - TILE_SIZE;
     for (let seg of mapLayout[row]) {
-      if (!seg.type) continue;            // null인 구간은 건너뛰고
+      if (!seg.type) continue;    // ← add this back
       for (let x = seg.x1; x <= seg.x2; x += TILE_SIZE) {
         tiles.push(new Tile(x, y, seg.type));
       }
@@ -76,6 +79,16 @@ function setup() {
 }
 
 function draw() {
+  if (gameOver) {
+    // 승리음 한 번만 재생
+    bgm.bgmGround.stop();
+    if (!victoryPlayed) {
+      effectSound.victory.play();
+      victoryPlayed = true;
+    }
+    drawVictoryScreen();
+    return;
+  }
   backgroundManager.draw();
   decoTiles.forEach(t => t.draw());
   tiles.forEach(t => t.draw());
@@ -89,6 +102,7 @@ function draw() {
   handleBombs();
   handleSpecialProjectiles();
   breakManager();
+  drawUI();
 }
 
 function keyPressed() {
@@ -237,15 +251,19 @@ class Player {
     }
     switch(type) {
       case 'mush':
+        effectSound.getItem.play();
         this.fireTimer = 8 * 60;   // 8초간 (60fps 가정)
         break;
       case 'poison':
+        effectSound.getItem.play();
         this.poisonTimer = 3 * 60; // 3초간
         break;
       case 'giant':
+        effectSound.getItem.play();
         this.giantTimer = 5 * 60;  // 5초간
         break;
       case 'bombadd':
+        effectSound.getItem.play();
         this.bombCount += 5;
         break;
     }
@@ -374,48 +392,33 @@ class Player {
     if (this.y > deathZoneY) this.respawn();
   }
 
-  handleKeyPressed(k) {
-    this.keys[k] = true;
-    if (k === this.controls.jump && this.onGround) this.jump();
-    if (k === this.controls.attack) this.shoot();
-    if (k === this.controls.bomb) this.bombHoldStartTime = millis();
-  }
-
-  handleKeyReleased(k) {
-    this.keys[k] = false;
-    if (k === this.controls.bomb && this.bombHoldStartTime !== null) {
-      const held = millis() - this.bombHoldStartTime;
-      if (held >= this.maxCharge) this.fireBigMissile(); else this.dropBomb();
-      this.bombHoldStartTime = null;
-      this.chargeTime = 0;
-    }
-  }
-
   respawn() {
     // 목숨 하나 감소
+    effectSound.dead.play();
     this.deathCount--;
     if (this.deathCount > 0) {
       // 맵 가운데 상단으로 리셋
+      const spawnHeight = 1000;
       this.x = width/2 - this.width/2;
-      this.y = 0;
+      this.y = - spawnHeight;
       this.vx = this.vy = this.knockbackVX = 0;
-      // 0.5초 무적
-      this.invulnerable = true;
-      this.invTimer     = 30;  // 60fps 기준 30프레임
     } else {
       // 목숨 모두 소진 → 게임 오버
       gameOver = true;
+      winner = (this === player1 ? player2 : player1);
     }
   }
 
   jump() {
     if (this.jumpCount < 2) {
+      effectSound.jump.play();
       this.vy = -12;
       this.jumpCount++;
     }
   }
 
   shoot() {
+    effectSound.fire.play();
     const spawnX = this.facing === 'right' ? this.x + this.width : this.x - 16;
     const spawnY = this.y + this.height/2;
     const dir = this.facing === 'right' ? 15 : -15;
@@ -423,7 +426,7 @@ class Player {
     this.state = 'shoot';
     this.attackTimer = 10;
     this.frame = 0;
-    this.knockbackVX = this.facing === 'right' ? -2 : 2;
+    this.knockbackVX = this.facing === 'right' ? -1 : 1;
   }
 
   dropBomb() {
@@ -433,6 +436,7 @@ class Player {
     const normalizedV = 1 + map(this.chargeTime, 0,  1000, 0,  1);
     const v_bombx = this.facing === 'right' ? 5 * normalizedV : -5 * normalizedV;
     const v_bomby = - 2 * (normalizedV);
+    effectSound.bombthrow.play();
     bombs.push(new Bomb(bx, by, v_bombx, v_bomby));
     this.bombCount--;
     this.state = 'shoot';
@@ -441,6 +445,7 @@ class Player {
   }
 
   fireBigMissile() {
+    effectSound.bigmissile.play();
     const dir = this.facing === 'right' ? 5 : -5;
     const mW = 64 * 2, mH = 64 * 2;
     const spawnX = this.facing === 'right'
@@ -456,17 +461,26 @@ class Player {
 
   handleKeyPressed(k) {
     this.keys[k] = true;
-    if (k === this.controls.jump)  this.jump();
-    if (k === this.controls.attack)this.shoot();
-    if (k === this.controls.bomb)  this.bombHoldStartTime = millis();
+    if (k === this.controls.jump) {
+      this.jump();
+    } 
+    if (k === this.controls.attack){
+      this.shoot();
+    }
+    if (k === this.controls.bomb) this.bombHoldStartTime = millis();
   }
 
   handleKeyReleased(k) {
     this.keys[k] = false;
     if (k === this.controls.bomb && this.bombHoldStartTime !== null) {
       const held = millis() - this.bombHoldStartTime;
-      if (held >= this.maxCharge ) this.fireBigMissile();
-      else this.dropBomb();
+      if (held >= this.maxCharge && this.bigMissileCount > 0) {
+        effectSound.bigmissile.play();
+        this.fireBigMissile();
+      }
+      else {
+        this.dropBomb();
+      }
       this.bombHoldStartTime = null;
       this.chargeTime = 0;
     }
@@ -559,7 +573,7 @@ class Projectile {
     // 충돌 & 넉백
     for (const t of targets) {
       if (!this.shouldDestroy && this.hits(t)) {
-        if (t.giantTimer > 0) {
+        if (t.giantTimer > 0 || t.poisonTimer > 0) {
           // giant 상태면 넉백 없이 그냥 삭제
           this.shouldDestroy = true;
         } 
@@ -618,6 +632,30 @@ class Bomb {
   }
 
   update() {
+    if (this.stuck) {
+    // 밑에 타일이 남아 있는지 체크
+    const underY = this.y + this.height;
+    let hasTile = false;
+    for (let tile of tiles) {
+      if (
+        tile.y === underY &&
+        this.x + this.width > tile.x &&
+        this.x < tile.x + tile.width
+      ) {
+        hasTile = true;
+        break;
+      }
+    }
+    if (!hasTile) {
+      // 타일이 사라졌으면 다시 떨어지도록
+      this.stuck = false;
+    } 
+    else {
+      // 여전히 타일 위면 속도 0, 위치 고정만
+      this.vy = 0;
+      this.y  = underY - this.height;
+    }
+  }
     // 1) 폭발 타이머
     if (!this.exploded) {
       this.timer--;
@@ -627,8 +665,10 @@ class Bomb {
         this.explode();
         return;
       }
-    } else {
-      // 폭발 애니메이션
+    } 
+    else {
+      // 폭발 애니메이션s
+      effectSound.bomb.play();
       this.explodeTimer--;
       if (this.explodeTimer <= 0) this.shouldRemove = true;
       return;
@@ -691,6 +731,10 @@ class Bomb {
           p.knockbackVX += cos(angle) * force * 0.5;
           p.vy         += sin(angle) * force * 0.5;
         }
+        else if(p.poisonTimer > 0) {
+          p.knockbackVX += cos(angle) * force * 0;
+          p.vy         += sin(angle) * force * 0;
+        }
         else {
           p.knockbackVX += cos(angle) * force * 2;
           p.vy         += sin(angle) * force * 2;
@@ -709,6 +753,7 @@ class Bomb {
         if (dist(cx, cy, tx, ty) < this.radius) {
           // 타일 제거
           tiles.splice(i, 1);
+          effectSound.breakBlock.play();
           // 파괴 애니메이션 추가
           breakEffects.push(new BreakEffect(t.x, t.y));
         }
@@ -872,6 +917,30 @@ class Item {
   }
 
   update() {
+    if (this.stuck) {
+      // 밑에 타일이 남아 있는지 체크
+      const underY = this.y + this.height;
+      let hasTile = false;
+      for (let tile of tiles) {
+        if (
+          tile.y === underY &&
+          this.x + this.width > tile.x &&
+          this.x < tile.x + tile.width
+        ) {
+          hasTile = true;
+          break;
+        }
+      }
+      if (!hasTile) {
+        // 타일이 사라졌으면 다시 떨어지도록
+        this.stuck = false;
+      } else {
+        // 여전히 타일 위면 속도 0, 위치 고정만
+        this.vy = 0;
+        this.y  = underY - this.height;
+      }
+    }
+    
     // 1) 폭발 같은 특별 로직이 없으므로 바로
     //    착지 전이라면 중력+착지 판정
     if (!this.stuck) {
@@ -966,4 +1035,67 @@ function randomSpawnItem() {
       items.splice(i, 1);
     }
   }
+}
+
+function drawUI() {
+  const boxW = 140;
+  const boxH = 60;
+  const pad  = 10;
+
+  // 공통 스타일
+  textSize(12);
+  textAlign(LEFT, TOP);
+
+  // ────── Player 1 UI (좌하단) ──────
+  push();
+    // 반투명 검정 배경
+    fill(0, 150);
+    noStroke();
+    rect(pad, height - boxH - pad, boxW, boxH, 4);
+
+    // 흰색 텍스트
+    fill(255);
+    // Ammo (big missiles)
+    text(`Missle:  ${player1.bigMissileCount}`, pad+8, height - boxH - pad + 8);
+    // Lives (deathCount)
+    text(`Lives: ${player1.deathCount}`,     pad+8, height - boxH - pad + 24);
+    // Bombs
+    text(`Bombs: ${player1.bombCount}`,     pad+8, height - boxH - pad + 40);
+  pop();
+
+  // ────── Player 2 UI (우하단) ──────
+  push();
+    fill(0, 150);
+    noStroke();
+    // 우측 끝에 붙이려면 width - boxW - pad
+    rect(width - boxW - pad, height - boxH - pad, boxW, boxH, 4);
+
+    fill(255);
+    text(`Missle:  ${player2.bigMissileCount}`, width - boxW - pad + 8, height - boxH - pad + 8);
+    text(`Lives: ${player2.deathCount}`,     width - boxW - pad + 8, height - boxH - pad + 24);
+    text(`Bombs: ${player2.bombCount}`,      width - boxW - pad + 8, height - boxH - pad + 40);
+  pop();
+}
+function drawVictoryScreen() {
+  // 반투명 검정으로 전체 어둡게
+  fill(0, 180);
+  rect(0, 0, width, height);
+
+  // 가운데 “YOU WIN” 텍스트
+  textAlign(CENTER, CENTER);
+  textSize(64);
+  fill(255, 215, 0);  // 골드 색
+  text('YOU WIN!', width/2, height/2 - 80);
+
+  // 승리한 플레이어 얼굴 또는 스프라이트 크게 보여 주기
+  const iconSize = 128;
+  const img = winner.imgSet.idle[0];  // 또는 walk[0] 등 원하는 프레임
+  image(
+    img,
+    width/2 - iconSize/2,
+    height/2 - iconSize/2 + 20,
+    iconSize,
+    iconSize
+  );
+
 }

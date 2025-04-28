@@ -1,7 +1,6 @@
 let spriteSheets = {};
 let P1imgs = {}, P2imgs = {}, itemimgs = {}, tileimgs = {}, decoimgs = {};
 let backgroundManager;
-let gravity = 0.8;
 
 function preloadAssets() {
   // 1) 스프라이트 시트 로드
