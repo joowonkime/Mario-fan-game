@@ -3,7 +3,6 @@ let P1imgs = {}, P2imgs = {}, itemimgs = {}, tileimgs = {}, decoimgs = {};
 let backgroundManager;
 
 function preloadAssets() {
-  // 1) 스프라이트 시트 로드
   spriteSheets.backgrounds   = loadImage("assets/Mario-Background.png");
   spriteSheets.characters    = loadImage("assets/Mario-Character+Item.png");
   spriteSheets.specialweapon = loadImage("assets/Mario-Enemy.png");
@@ -14,7 +13,6 @@ function preloadAssets() {
 }
 
 function sliceAssets() {
-  // 2) 배경 슬라이스 및 Background 인스턴스 생성
   const bgsrc = spriteSheets.backgrounds;
   const w = 512, h = 512;
   const bgDay   = createImage(w, h);
@@ -23,7 +21,6 @@ function sliceAssets() {
   bgNight.copy(bgsrc, 514, 5721, w, h, 0, 0, w, h);
   backgroundManager = new Background(bgDay, bgNight);
 
-  // 3) 크로마키 함수
   function applyChromaKey(img, keyColor = {r:147, g:187, b:236}) {
     img.loadPixels();
     for (let i = 0; i < img.pixels.length; i += 4) {
@@ -34,7 +31,6 @@ function sliceAssets() {
     img.updatePixels();
   }
 
-  // 4) 캐릭터 프레임 슬라이스 (Mario)
   const src = spriteSheets.characters;
   const cw = 32, ch = 32;
   const mi = createImage(cw,ch); mi.copy(src, 1, 98, cw, ch, 0,0, cw,ch);
@@ -47,7 +43,6 @@ function sliceAssets() {
   
   P1imgs = { idle:[mi], walk:[mw1,mw2,mw3], jump:[mj], shoot:[ma] };
 
-  // 5) 캐릭터 프레임 슬라이스 (Luigi)
   const li = createImage(cw,ch); li.copy(src,1,629,cw,ch,0,0,cw,ch);
   const lw1= createImage(cw,ch); lw1.copy(src,75,629,cw,ch,0,0,cw,ch);
   const lw2= createImage(cw,ch); lw2.copy(src,108,629,cw,ch,0,0,cw,ch);
@@ -58,7 +53,6 @@ function sliceAssets() {
 
   P2imgs = { idle:[li], walk:[lw1,lw2,lw3], jump:[lj], shoot:[la] };
 
-  // 6) 아이템 및 특수 투사체 프레임
   const spsrc = spriteSheets.specialweapon;
   const ow=16, oh=16;
   const mush = createImage(ow,oh); mush.copy(src,1,2126,ow,oh,0,0,ow,oh);
@@ -72,7 +66,6 @@ function sliceAssets() {
   const beffect = createImage(1.5*ow, 1.5*oh); beffect.copy(spsrc, 604, 413, 1.5*ow, 1.5*oh, 0, 0, 1.5*ow, 1.5*oh);
   [mush,bombadd,poison,giant,fire,fireench,bomb,bm, beffect].forEach(img=>applyChromaKey(img));
   function applyColorFilter(img, delta) {
-    // img.pixels 에 접근해 기존 색상을 유지하며 R 증가, G 감소
     img.loadPixels();
     for (let i = 0; i < img.pixels.length; i += 4) {
       const alpha = img.pixels[i+3];
@@ -90,7 +83,6 @@ function sliceAssets() {
     }
     img.updatePixels();
   }
-  // 기존 bomb 이미지 복제 후 크로마키, 색상 필터 적용
   const bombWarn = bomb.get();
   applyColorFilter(bombWarn, {r: 150, g: 100, b:200} );
 

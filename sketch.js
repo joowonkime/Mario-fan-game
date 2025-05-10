@@ -16,11 +16,9 @@ const groundY = [100, 200, 300, 400, 500, 550];
 //352, 384, 416, 
 //448, 480, 512, 544, 576, 608, 640, 672, 704, 736, //
 const mapLayout = [
-  // row 0 (y=100):  64~192 bb,      576~704 bb
   [
     { x1:  224, x2: 544, type: 'breakableblock' },
   ],
-  // row 1 (y=200): 128~224 bb, 256~320 gb1, 352~416 null, 448~512 gb1, 544~640 bb
   [
     { x1: 128, x2: 224, type: 'breakableblock' },
     { x1: 256, x2: 320, type: 'groundblock1'   },
@@ -28,15 +26,12 @@ const mapLayout = [
     { x1: 448, x2: 512, type: 'groundblock1'   },
     { x1: 544, x2: 640, type: 'breakableblock' },
   ],
-  // row 2 (y=300):  64~704 gb1
   [
     { x1:  64, x2: 704, type: 'groundblock1' },
   ],
-  // row 3 (y=400): 256~512 gb1
   [
     { x1: 256, x2: 512, type: 'groundblock1' },
   ],
-  // row 4 (y=500): 128~224 gb1, 256~288 bb, 320~448 null, 480~512 bb, 544~640 gb1
   [
     { x1: 128, x2: 224, type: 'groundblock1'   },
     { x1: 256, x2: 288, type: 'breakableblock' },
@@ -44,7 +39,6 @@ const mapLayout = [
     { x1: 480, x2: 512, type: 'breakableblock' },
     { x1: 544, x2: 640, type: 'groundblock1'   },
   ],
-  // row 5 (y=550):  32~736 bb
   [
     { x1:  32, x2: 736, type: 'breakableblock' },
   ],
@@ -64,13 +58,13 @@ function setup() {
   controlsP1 = { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', attack:'[', bomb:']', down:'ArrowDown' };
   controlsP2 = { left:'a', right:'d', jump:'w', attack:'t', bomb:'y', down:'s' };
 
-  player1 = new Player(100, 100, P1imgs, controlsP1);
-  player2 = new Player(200, 100, P2imgs, controlsP2);
+  player1 = new Player(150, 300, P1imgs, controlsP1);
+  player2 = new Player(650, 300, P2imgs, controlsP2);
 
   for (let row = 0; row < groundY.length; row++) {
     const y = groundY[row] - TILE_SIZE;
     for (let seg of mapLayout[row]) {
-      if (!seg.type) continue;    // ← add this back
+      if (!seg.type) continue;
       for (let x = seg.x1; x <= seg.x2; x += TILE_SIZE) {
         tiles.push(new Tile(x, y, seg.type));
       }
@@ -80,7 +74,6 @@ function setup() {
 
 function draw() {
   if (gameOver) {
-    // 승리음 한 번만 재생
     bgm.bgmGround.stop();
     if (!victoryPlayed) {
       effectSound.victory.play();
@@ -93,8 +86,10 @@ function draw() {
   decoTiles.forEach(t => t.draw());
   tiles.forEach(t => t.draw());
 
-  player1.update(); player1.draw();
-  player2.update(); player2.draw();
+  player1.update();
+  player1.draw();
+  player2.update();
+  player2.draw();
 
   
   randomSpawnItem();
@@ -152,7 +147,7 @@ class BreakEffect {
       decoimgs.breakeffect3[0]
     ];
     this.currentFrame = 0;
-    this.frameTimer = 8;    // 각 프레임을 몇 틱 동안 보여줄지
+    this.frameTimer = 8;
     this.active = true;
   }
   update() {
@@ -226,41 +221,38 @@ class Player {
     this._animTimer = 0;
     this._animInterval = 6;
     this.attackTimer = 0;
-    this.dropping = false; // drop-through state
-    this.dropRowY = null;  // current tile to drop through
-    this.currentTileY = null; // current tile Y position for drop-through
+    this.dropping = false;
+    this.dropRowY = null;
+    this.currentTileY = null;
 
     this.itemCount       = 0;
-    this.bombCount       = 10;
+    this.bombCount       = 5;
     this.bigMissileCount = 0;
 
-    // 효과 타이머들 (frame 단위)
     this.fireTimer   = 0;
     this.poisonTimer = 0;
     this.giantTimer  = 0;
 
-    this.deathCount   = 5;     // 남은 목숨
-    this.invulnerable = false; // 무적 플래그
-    this.invTimer     = 0;     // 무적 남은 프레임
+    this.deathCount   = 5;
   }
 
   applyItem(type) {
     this.itemCount++;
-    if (this.itemCount % 2 === 0) {
+    if (this.itemCount % 3 === 0) {
       this.bigMissileCount++;
     }
     switch(type) {
       case 'mush':
         effectSound.getItem.play();
-        this.fireTimer = 8 * 60;   // 8초간 (60fps 가정)
+        this.fireTimer = 8 * 60;
         break;
       case 'poison':
         effectSound.getItem.play();
-        this.poisonTimer = 3 * 60; // 3초간
+        this.poisonTimer = 3 * 60;
         break;
       case 'giant':
         effectSound.getItem.play();
-        this.giantTimer = 5 * 60;  // 5초간
+        this.giantTimer = 5 * 60;
         break;
       case 'bombadd':
         effectSound.getItem.play();
@@ -270,79 +262,64 @@ class Player {
   }
 
   update() {
-    // (1) poison 효과: 이동 불가
     if (this.poisonTimer > 0) {
       this.poisonTimer--;
-      // 이동 벡터 강제 0
       this.vx = this.vy = 0;
       return;
     }
 
-    // (2) giant 효과: 크기 및 공격 크기 조정
     if (this.giantTimer > 0) {
       this.giantTimer--;
       this.width  = 64;  this.height = 64;
     } 
     else {
-      // 기본 크기로 복원
       this.width  = 32;  this.height = 32;
     }
 
-    // (3) mush 효과: fire 인챈트
     if (this.fireTimer > 0) {
       this.fireTimer--;
     }
-    // Bomb charging
+
     if (this.keys[this.controls.bomb] && this.bombHoldStartTime !== null) {
       this.chargeTime = min(millis() - this.bombHoldStartTime, this.maxCharge);
     }
-    // Attack cooldown
+
     if (this.attackTimer > 0) {
       this.attackTimer--;
       if (this.attackTimer === 0) this.state = this.onGround ? 'idle' : 'jump';
     }
 
-    // Horizontal movement
     let inputVX = 0;
     if (this.keys[this.controls.left])      { inputVX = -5; this.facing = 'left'; }
     else if (this.keys[this.controls.right]){ inputVX = 5;  this.facing = 'right'; }
     this.vx = inputVX + this.knockbackVX;
     this.x += this.vx;
 
-    // Gravity 적용
     this.vy += gravity;
     let nextY = this.y + this.vy;
 
-    // 위로 올라갈 때 드롭 취소
     if (this.vy < 0 && this.dropRowY !== null) {
       this.dropRowY = null;
       this.dropping = false;
     }
 
     let landed = false;
-    // 한 방향 플랫폼 충돌 처리 (아래로 떨어질 때만)
+
     if (this.vy > 0) {
       for (let tile of tiles) {
-        // 드롭 중일 때, 지정된 행은 충돌 무시
         if (this.dropping && tile.y === this.dropRowY) continue;
 
-        if (
-          this.x + this.width  > tile.x &&
-          this.x               < tile.x + tile.width &&
-          this.y + this.height <= tile.y &&
-          nextY + this.height  >= tile.y
-        ) {
-          // 착지
+        if ( this.x + this.width > tile.x &&this.x < tile.x + tile.width &&
+          this.y + this.height <= tile.y && nextY + this.height  >= tile.y){
+            
           landed = true;
           this.y = tile.y - this.height;
           this.vy = 0;
           this.onGround = true;
           this.jumpCount = 0;
 
-          // 나중에 DROP 키로 통과시킬 행 기록
           this.currentTileY = tile.y;
 
-          // 착지하면 드롭 상태 초기화
           this.dropping  = false;
           this.dropRowY = null;
           break;
@@ -368,42 +345,35 @@ class Player {
 
     if (this.state === 'walk') {
       this._animTimer++;
-    } else {
+    }
+    else {
       this._animTimer = 0;
     }
 
-    // DOWN 키로 현재 플랫폼 행 통과
-    if (
-      this.keys[this.controls.down] &&
-      this.onGround &&
-      this.currentTileY !== null
-    ) {
+    if (this.keys[this.controls.down] && this.onGround && this.currentTileY !== null) {
       this.dropping     = true;
       this.dropRowY     = this.currentTileY;
       this.onGround     = false;
       this.currentTileY = null;
       this.jumpCount = 1;
     }
-    // Knockback decay
+
     this.knockbackVX *= 0.9;
     if (abs(this.knockbackVX) < 0.1) this.knockbackVX = 0;
 
-    // Respawn if fallen off map
     if (this.y > deathZoneY) this.respawn();
   }
 
   respawn() {
-    // 목숨 하나 감소
     effectSound.dead.play();
     this.deathCount--;
     if (this.deathCount > 0) {
-      // 맵 가운데 상단으로 리셋
       const spawnHeight = 1000;
       this.x = width/2 - this.width/2;
       this.y = - spawnHeight;
       this.vx = this.vy = this.knockbackVX = 0;
-    } else {
-      // 목숨 모두 소진 → 게임 오버
+    } 
+    else {
       gameOver = true;
       winner = (this === player1 ? player2 : player1);
     }
@@ -488,17 +458,13 @@ class Player {
 
   draw() {
     if (this.poisonTimer > 0) {
-      // R=255, G=B=150 정도: 연한 붉은빛으로
       tint(200, 100, 255);
     } 
     else {
       noTint();
     }
-    // charge gauge 그리기
     if (this.chargeTime > 0) {
-      // 최대 너비를 this.width(32px)로 매핑
       const w = map(this.chargeTime, 0, this.maxCharge, 0, this.width);
-      // 충전 전: 노랑, 충전 완료 시: 빨강
       if (this.chargeTime < this.maxCharge) {
         fill(255, 255, 0);
       } else {
@@ -509,11 +475,10 @@ class Player {
     }
     
     if (this.state === 'walk') {
-      const seq = this.imgSet.walk;  // [walk1, walk2, walk3]
+      const seq = this.imgSet.walk;
       this.frame = Math.floor(this._animTimer / this._animInterval) % seq.length;
     } 
     else {
-      // walk 외 상태는 0번 프레임 고정 (idle 이나 shoot 등)
       this.frame = 0;
     }
     const img = this.imgSet[this.state][this.frame];
@@ -530,8 +495,6 @@ class Player {
   }
 }
 
-
-
 class Projectile {
   constructor(x, y, vx, enchanted = false, isgiant = false) {
     this.x = x;
@@ -540,11 +503,10 @@ class Projectile {
     this.enchanted = enchanted;
     this.isgiant = isgiant;
 
-    // 크기 세팅
     if (enchanted) {
       this.width  = 16;
       this.height = 16;
-      this.knockbackFactor = 1.0; // vx * knockbackFactor 계산 → 사실상 2배
+      this.knockbackFactor = 1.0;
       this.sprite = itemimgs.fire_enchant[0];
     } 
     else if(isgiant) {
@@ -567,25 +529,20 @@ class Projectile {
   }
 
   update(targets) {
-    // 이동
     this.x += this.vx;
 
-    // 충돌 & 넉백
     for (const t of targets) {
       if (!this.shouldDestroy && this.hits(t)) {
         if (t.giantTimer > 0 || t.poisonTimer > 0) {
-          // giant 상태면 넉백 없이 그냥 삭제
           this.shouldDestroy = true;
         } 
         else {
-          // giant 상태 아니면 넉백
           t.knockbackVX += this.vx * this.knockbackFactor;
           this.shouldDestroy = true;
         }
       }
     }
 
-    // 수명 검사
     if (millis() - this.spawnTime > this.lifetime) {
       this.shouldDestroy = true;
     }
@@ -627,36 +584,32 @@ class Bomb {
     this.shouldRemove = false;
     this.radius = 100;
 
-    this.stuck = false;   // 착지 플래그
-    this.stuckY = null;   // 멈춘 플랫폼의 y 좌표
+    this.stuck = false;
+    this.stuckY = null;
   }
 
   update() {
     if (this.stuck) {
-    // 밑에 타일이 남아 있는지 체크
-    const underY = this.y + this.height;
-    let hasTile = false;
-    for (let tile of tiles) {
-      if (
-        tile.y === underY &&
-        this.x + this.width > tile.x &&
-        this.x < tile.x + tile.width
-      ) {
-        hasTile = true;
-        break;
+      const underY = this.y + this.height;
+      let hasTile = false;
+      for (let tile of tiles) {
+        if (
+          tile.y === underY &&
+          this.x + this.width > tile.x &&
+          this.x < tile.x + tile.width
+        ) {
+          hasTile = true;
+          break;
+        }
+      }
+      if (!hasTile) {
+        this.stuck = false;
+      } 
+      else {
+        this.vy = 0;
+        this.y  = underY - this.height;
       }
     }
-    if (!hasTile) {
-      // 타일이 사라졌으면 다시 떨어지도록
-      this.stuck = false;
-    } 
-    else {
-      // 여전히 타일 위면 속도 0, 위치 고정만
-      this.vy = 0;
-      this.y  = underY - this.height;
-    }
-  }
-    // 1) 폭발 타이머
     if (!this.exploded) {
       this.timer--;
       if (this.timer <= 60) this.warning = true;
@@ -667,48 +620,37 @@ class Bomb {
       }
     } 
     else {
-      // 폭발 애니메이션s
       effectSound.bomb.play();
       this.explodeTimer--;
       if (this.explodeTimer <= 0) this.shouldRemove = true;
       return;
     }
 
-    // 2) 이미 착지(stuck) 상태면 위치만 고정
     if (this.stuck) {
       this.vy = 0;
-      // 멈춘 행의 y값 기준으로 위치 고정
       this.y = this.stuckY - this.height;
       return;
     }
 
-    // 3) 중력·이동
     this.vy += gravity;
     this.x  += this.vx;
     this.y  += this.vy;
 
     const landThreshold = 1;
 
-    // 4) 타일 바운스 처리
     for (let tile of tiles) {
-      if (
-        this.y + this.height >= tile.y &&
-        this.y + this.height - this.vy < tile.y &&
-        this.x + this.width > tile.x &&
-        this.x < tile.x + tile.width
+      if (this.y + this.height >= tile.y && this.y + this.height - this.vy < tile.y &&
+        this.x + this.width > tile.x && this.x < tile.x + tile.width
       ) {
-        // 타일 꼭대기로 위치 고정
         this.y = tile.y - this.height;
 
-        // 반사 감쇠
         this.vy *= -0.5;
         this.vx *=  0.7;
 
-        // 속도가 작아지면 진짜 착지
         if (Math.abs(this.vy) < landThreshold) {
           this.vy     = 0;
           this.stuck  = true;
-          this.stuckY = tile.y;  // y좌표만 저장
+          this.stuckY = tile.y;
         }
         break;
       }
@@ -716,7 +658,6 @@ class Bomb {
   }
 
   explode() {
-    // 폭발 반경 내 모든 플레이어에게 넉백 적용
     [player1, player2].forEach(p => {
       const cx = this.x + this.width/2;
       const cy = this.y + this.height/2;
@@ -751,10 +692,8 @@ class Bomb {
         const tx = t.x + TILE_SIZE/2;
         const ty = t.y + TILE_SIZE/2;
         if (dist(cx, cy, tx, ty) < this.radius) {
-          // 타일 제거
           tiles.splice(i, 1);
           effectSound.breakBlock.play();
-          // 파괴 애니메이션 추가
           breakEffects.push(new BreakEffect(t.x, t.y));
         }
       }
@@ -795,31 +734,25 @@ class BigMissile {
   }
 
   update(targets) {
-    // 미사일 이동
+
     this.x += this.vx;
 
     for (const t of targets) {
-      // AABB 충돌 체크
       const w = this.width * 2;
       const h = this.height * 2;
       const overlapX = this.x < t.x + t.width && this.x + w > t.x;
       const overlapY = this.y < t.y + t.height && this.y + h > t.y;
       if (!overlapX || !overlapY) continue;
 
-      // 플레이어가 미사일 위에 서 있는지 검사
       const playerBottom = t.y + t.height;
       const missileTop = this.y;
-      // 아래로 충돌 시(떨어져서 올라탄 경우)
       if (t.vy > 0 && playerBottom <= missileTop + h * 0.1) {
-        // 지면 위에 착지 처리
         t.y = missileTop - t.height;
         t.vy = 0;
       }
       else {
-        // 측면 충돌 시 겹침 방지용 강제 이동
         if (this.vx > 0) {
           t.x = this.x + w;
-
         }
         else {
           t.x = this.x - t.width;
@@ -828,7 +761,6 @@ class BigMissile {
       break;
     }
 
-    // 수명 검사
     if (millis() - this.spawnTime > this.lifetime) {
       this.shouldDestroy = true;
     }
@@ -838,7 +770,6 @@ class BigMissile {
     const img = itemimgs.bigmissile[0];
     push();
     if (this.vx > 0) {
-      // 왼쪽 발사시 이미지 뒤집기
       translate(this.x + this.width * 2, this.y);
       scale(-1, 1);
       image(img, 0, 0, this.width * 2, this.height * 2);
@@ -850,7 +781,6 @@ class BigMissile {
   }
 
   hits(target) {
-    // 미사일 자체 크기로 충돌 영역 계산 (2배 확대된 폭)
     const w = this.width * 2;
     const h = this.height * 2;
     return (
@@ -875,10 +805,9 @@ class Item {
     this.width    = TILE_SIZE;
     this.height   = TILE_SIZE;
     this.toRemove = false;
-    this.stuck    = false;  // 착지 플래그
+    this.stuck    = false;
   }
 
-  /** 기존 hit 기능: target 오브젝트와의 겹침(충돌) 확인 */
   hits(target) {
     return (
       this.x <  target.x + target.width &&
@@ -888,9 +817,7 @@ class Item {
     );
   }
 
-  /** 새로운 메서드: 타일 위 착지 판정만 담당 */
   landOnTiles() {
-    // 아래로 떨어질 때만 검사
     if (this.vy <= 0) return;
 
     const nextY = this.y + this.vy;
@@ -898,27 +825,22 @@ class Item {
       const prevBot = this.y + this.height;
       const currBot = nextY  + this.height;
 
-      // “위→아래 궤적 교차” + 가로 범위 겹침
       if (prevBot <= tile.y &&
           currBot >= tile.y &&
           this.x + this.width > tile.x &&
           this.x < tile.x + tile.width
       ) {
-        // 딱 타일 위에 착지
         this.y     = tile.y - this.height;
         this.vy    = 0;
         this.stuck = true;
         return;
       }
     }
-
-    // 착지 못했으면 실제 y 갱신
     this.y = nextY;
   }
 
   update() {
     if (this.stuck) {
-      // 밑에 타일이 남아 있는지 체크
       const underY = this.y + this.height;
       let hasTile = false;
       for (let tile of tiles) {
@@ -932,29 +854,24 @@ class Item {
         }
       }
       if (!hasTile) {
-        // 타일이 사라졌으면 다시 떨어지도록
         this.stuck = false;
-      } else {
-        // 여전히 타일 위면 속도 0, 위치 고정만
+      } 
+      else {
         this.vy = 0;
         this.y  = underY - this.height;
       }
     }
-    
-    // 1) 폭발 같은 특별 로직이 없으므로 바로
-    //    착지 전이라면 중력+착지 판정
+  
     if (!this.stuck) {
       this.vy += 0.5 * gravity;
       this.landOnTiles();
     }
 
-    // 2) 화면 아래로 벗어나면 제거
     if (this.y > height) {
       this.toRemove = true;
       return;
     }
 
-    // 3) 플레이어 충돌 판정 (hits 메서드 재사용)
     for (let p of [player1, player2]) {
       if (!this.toRemove && this.hits(p)) {
         p.applyItem(this.type);
@@ -1001,7 +918,6 @@ function handleSpecialProjectiles() {
   }
 }
 function breakManager() {
-  // 뒤에서부터 순회하며 업데이트·렌더·제거 처리
   for (let i = breakEffects.length - 1; i >= 0; i--) {
     const e = breakEffects[i];
     e.update();
@@ -1012,21 +928,16 @@ function breakManager() {
   }
 }
 function randomSpawnItem() {
-  // 1) 랜덤 타이밍에 새로운 아이템 스폰
   if (frameCount >= nextItemFrame) {
-    // 타입 선택
     const types = ['mush','poison','giant','bombadd'];
     const type  = random(types);
-    // X 위치는 화면 가로 범위 안에서 랜덤
     const x     = random(0, width - TILE_SIZE);
 
     items.push(new Item(type, x));
 
-    // 다음 스폰 타이밍: 3~8초 뒤
-    nextItemFrame = frameCount + floor(random(3, 8) * 60);
+    nextItemFrame = frameCount + floor(random(10,15) * 60);
   }
 
-  // 2) 기존 아이템들 업데이트 → 드로우 → 필요 시 제거
   for (let i = items.length - 1; i >= 0; i--) {
     const it = items[i];
     it.update();
@@ -1042,32 +953,23 @@ function drawUI() {
   const boxH = 60;
   const pad  = 10;
 
-  // 공통 스타일
   textSize(12);
   textAlign(LEFT, TOP);
 
-  // ────── Player 1 UI (좌하단) ──────
   push();
-    // 반투명 검정 배경
     fill(0, 150);
     noStroke();
     rect(pad, height - boxH - pad, boxW, boxH, 4);
 
-    // 흰색 텍스트
     fill(255);
-    // Ammo (big missiles)
     text(`Missle:  ${player1.bigMissileCount}`, pad+8, height - boxH - pad + 8);
-    // Lives (deathCount)
     text(`Lives: ${player1.deathCount}`,     pad+8, height - boxH - pad + 24);
-    // Bombs
     text(`Bombs: ${player1.bombCount}`,     pad+8, height - boxH - pad + 40);
   pop();
 
-  // ────── Player 2 UI (우하단) ──────
   push();
     fill(0, 150);
     noStroke();
-    // 우측 끝에 붙이려면 width - boxW - pad
     rect(width - boxW - pad, height - boxH - pad, boxW, boxH, 4);
 
     fill(255);
@@ -1077,19 +979,16 @@ function drawUI() {
   pop();
 }
 function drawVictoryScreen() {
-  // 반투명 검정으로 전체 어둡게
   fill(0, 180);
   rect(0, 0, width, height);
 
-  // 가운데 “YOU WIN” 텍스트
   textAlign(CENTER, CENTER);
   textSize(64);
-  fill(255, 215, 0);  // 골드 색
+  fill(255, 215, 0);
   text('YOU WIN!', width/2, height/2 - 80);
 
-  // 승리한 플레이어 얼굴 또는 스프라이트 크게 보여 주기
   const iconSize = 128;
-  const img = winner.imgSet.idle[0];  // 또는 walk[0] 등 원하는 프레임
+  const img = winner.imgSet.idle[0];
   image(
     img,
     width/2 - iconSize/2,
