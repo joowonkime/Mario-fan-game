@@ -7,8 +7,8 @@
 # 2. URL of the git repository
 -  https://github.com/joowonkime/Mario-fan-game
 
-# 3. Youtube Video Link
-https://youtu.be/_2y0Jxiq-nE
+# 3. Youtube Video Links
+https://www.youtube.com/watch?v=rjB9X49TGNM
 
 # 4. Explanation of Game
 
