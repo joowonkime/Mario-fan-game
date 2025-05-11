@@ -48,6 +48,13 @@ function preload() {
   preloadSounds();
 }
 
+window.addEventListener("keydown", function(e) {
+  const blockedKeys = [37, 38, 39, 40];
+  if (blockedKeys.includes(e.keyCode)) {
+    e.preventDefault();
+  }
+}, false);
+
 function setup() {
   createCanvas(800, 600);
   sliceAssets();
@@ -720,6 +727,8 @@ class Bomb {
     return this.shouldRemove;
   }
 }
+
+
 class BigMissile {
   constructor(x, y, vx) {
     this.spawnTime = millis();

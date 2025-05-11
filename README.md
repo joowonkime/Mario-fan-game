@@ -8,6 +8,7 @@
 -  https://github.com/joowonkime/Mario-fan-game
 
 # 3. Youtube Video Link
+https://youtu.be/_2y0Jxiq-nE
 
 # 4. Explanation of Game
 
@@ -319,9 +320,9 @@ Returns the shouldDestroy flag to indicate if the bomb should be removed.
 Creates a missile object at a given location with a lifeTime of 20 seconds.
 
 #### update()
-If a player collides horizontally with the missile, they are pushed along the missile's direction.
+If a player collides horizontally(X) with the missile, they are pushed along the missile's direction.
 
-If a player collides vertically, they can stand on top of the missile like a platform.
+If a player collides vertically(Y), they can stand on top of the missile like a platform.
 
 Collision detection is handled by hits().
 
@@ -336,9 +337,13 @@ Returns the shouldDestroy flag to indicate if the missile should be removed.
 Functions similarly to other object classes. Items are spawned mid-air via randomSpawnItem() and fall due to gravity until they land on a tile.
 Collision with the player is checked using the hits() method.
 When picked up, the item's toRemove flag is set to true.
-
+#### update() 
+In update, we continuously check whether the tile in the position it is placed in is broken or not, and if it is broken, we change it to stuck = false and make it fall back down due to gravity.
 ### drawUI():
 Renders a UI panel on the bottom-left and bottom-right corners of the screen, showing each player's current status and resources.
 
 ### drawVictoryScreen():
 When gameOver is true, a victory screen is displayed in the center of the canvas showing the winner’s sprite along with the text "YOU WIN!".
+
+### window.addEventListener("keydown", )
+By using e.preventDefault(), I prevented the screen from scrolling when the player uses the arrow keys, eliminating the inconvenience of the game screen moving.
