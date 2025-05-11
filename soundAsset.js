@@ -4,7 +4,6 @@ let bgm = {};
 function preloadSounds() {
     soundFormats('mp3','wav');
     bgm.bgmGround         = loadSound('assets/M1_BGM_Ground_Play.mp3');
-    bgm.bgmGroundHurry    = loadSound('assets/M1_BGM_Ground_PlayHurry.mp3');
 
     effectSound.jump    = loadSound('assets/SMB1 Sounds/M1_SmallMarioJump.wav');
     effectSound.fire    = loadSound('assets/SMB1 Sounds/M1_FireBall.wav');

@@ -7,6 +7,7 @@
 # 2. URL of the git repository
 -  https://github.com/joowonkime/Mario-fan-game
 
+
 # 3. Youtube Video Links
 https://www.youtube.com/watch?v=rjB9X49TGNM
 
@@ -39,6 +40,8 @@ Also, for the variety of the game, items are dropped at random locations at regu
 The player starts with a total of 5 death counts, and the game is to survive by pushing away the opponents using the above methods.
 
 # 5. Code Explanation
+![commit](./Report_image/commit_record.png)
+
 This game is based on p5.js.
 
 The entire code can be broken down into the following major components:
